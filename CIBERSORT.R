@@ -218,7 +218,7 @@ CIBERSORT <- function(sig_matrix, mixture_file, perm=0, QN=TRUE, absolute=FALSE,
 sig_matrix <- read.csv("../LM22.txt", sep = "\t")
 rownames(sig_matrix)  <- sig_matrix$gene
 sig_matrix <- sig_matrix[,-1]
-
+#gtex
 mixture_file2 <- read.csv("../gtexTpmGenes.csv")
 rownames(mixture_file2) <- mixture_file2$gene
 mixture_file2 <- mixture_file2[,-1]
@@ -233,7 +233,7 @@ write.csv(LM_GTEX, "../GTEX_LM.csv")
 
 
 
-
+#tcga
 mixture_file <- read.csv("../tcgaTpmGenes.csv")
 rownames(mixture_file) <- mixture_file$gene
 mixture_file <- mixture_file[,-1]
