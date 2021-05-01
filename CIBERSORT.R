@@ -215,30 +215,25 @@ CIBERSORT <- function(sig_matrix, mixture_file, perm=0, QN=TRUE, absolute=FALSE,
   return(obj)
 }
 
-sig_matrix <- read.csv("../LM22.txt", sep = "\t")
+sig_matrix <- read.csv("./LM22.txt", sep = "\t")
 rownames(sig_matrix)  <- sig_matrix$gene
 sig_matrix <- sig_matrix[,-1]
 #gtex
-mixture_file2 <- read.csv("../gtexTpmGenes.csv")
+mixture_file2 <- read.csv("./gtexTpmGenes.csv")
 rownames(mixture_file2) <- mixture_file2$gene
 mixture_file2 <- mixture_file2[,-1]
-
-mixture_file2 <- read.csv("../gtexTpmGenes.csv")
 genes <- intersect(rownames(sig_matrix), rownames(mixture_file2))
 mixture_file2 <- mixture_file2[genes,]
-
 LM_GTEX <- CIBERSORT(sig_matrix = sig_matrix, mixture_file = mixture_file2, perm=0, QN=FALSE, absolute=TRUE, abs_method='no.sumto1')
-
-write.csv(LM_GTEX, "../GTEX_LM.csv")
+write.csv(LM_GTEX, "./GTEX_LM.csv")
 
 
 
 #tcga
-mixture_file <- read.csv("../tcgaTpmGenes.csv")
+mixture_file <- read.csv("./tcgaTpmGenes.csv")
 rownames(mixture_file) <- mixture_file$gene
 mixture_file <- mixture_file[,-1]
 genes <- intersect(rownames(sig_matrix), rownames(mixture_file))
 mixture_file <- mixture_file[genes,]
 LM_TCGA <- CIBERSORT(sig_matrix = sig_matrix, mixture_file = mixture_file, perm=0, QN=FALSE, absolute=TRUE, abs_method='no.sumto1')
-
-write.csv(LM_TCGA, "../TCGA_LM.csv")
+write.csv(LM_TCGA, "./TCGA_LM.csv")
