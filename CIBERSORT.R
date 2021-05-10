@@ -39,12 +39,22 @@
 # Output: matrix object containing all results and tabular data written to disk 'CIBERSORT-Results.txt'
 # License: http://cibersort.stanford.edu/CIBERSORT_License.txt
 
+
 #dependencies
-library(e1071)
-library(parallel)
-library(preprocessCore)
+# library(e1071)
+# library(parallel)
+# library(preprocessCore)
 
 #Core algorithm
+#' Title
+#'
+#' @param X
+#' @param y
+#' @param absolute
+#' @param abs_method
+#'
+#' @export
+#'
 CoreAlg <- function(X, y, absolute, abs_method){
   
   #try different values of nu
@@ -96,6 +106,16 @@ CoreAlg <- function(X, y, absolute, abs_method){
 }
 
 #do permutations
+#' Title
+#'
+#' @param perm Permutation
+#' @param X
+#' @param Y
+#' @param absolute
+#' @param abs_method
+#'
+#' @export
+#'
 doPerm <- function(perm, X, Y, absolute, abs_method){
   itor <- 1
   Ylist <- as.list(data.matrix(Y))
@@ -124,28 +144,73 @@ doPerm <- function(perm, X, Y, absolute, abs_method){
   newList <- list("dist" = dist)
 }
 
-#main function
-CIBERSORT <- function(sig_matrix, mixture_file, perm=0, QN=TRUE, absolute=FALSE, abs_method='sig.score'){
-  if(absolute && abs_method != 'no.sumto1' && abs_method != 'sig.score') stop("abs_method must be set to either 'sig.score' or 'no.sumto1'")
+
+
+
+#' CIBERSORT is an analytical tool developed by Newman et al. to provide an estimation of the abundances of member cell types in a mixed cell population, using gene expression data.
+
+#' @param sig_matrix  Cell type GEP barcode matrix: row 1 = sample labels; column 1 = gene symbols; no missing values; default =LM22.txt download from CIBERSORT (https://cibersort.stanford.edu/runcibersort.php)
+#' @param mixture_file  GEP matrix: row 1 = sample labels; column 1 = gene symbols; no missing values
+#' @param perm Set permutations for statistical analysis (≥100 permutations recommended).
+#' @param QN Quantile normalization of input mixture (default = TRUE)
+#' @param absolute  Run CIBERSORT in absolute mode (default = FALSE)
+#' - note that cell subsets will be scaled by their absolute levels and will not be represented as fractions
+#' (to derive the default output, normalize absolute levels such that they sum to 1 for each mixture sample)
+#' - the sum of all cell subsets in each mixture sample will be added to the ouput ('Absolute score').
+#' If LM22 is used, this score will capture total immune content.
+#' @param abs_method  if absolute is set to TRUE, choose method: 'no.sumto1' or 'sig.score'
+#' - sig.score = for each mixture sample, define S as the median expression
+#' level of all genes in the signature matrix divided by the median expression
+#' level of all genes in the mixture. Multiple cell subset fractions by S.
+#' - no.sumto1 = remove sum to 1 constraint
+#' @author Aaron M. Newman, Stanford University (amnewman@stanford.edu)
+#' @return cibersrot with immune cell fractions
+#' @export
+#' @import e1071
+#' @import parallel
+#' @import preprocessCore
+#' @import tidyverse
+#' @examples
+#' cibersort<-CIBERSORT(sig_matrix = lm22, mixture_file = eset_ec, perm = 1000, QN=TRUE, absolute=FALSE)
+#' head(cibersort)
+
+CIBERSORT <- function(sig_matrix = lm22, mixture_file, perm, QN = TRUE, absolute, abs_method='sig.score'){
+  
+  
+  if (length(intersect(rownames(mixture_file), rownames(sig_matrix))) == 0){
+    stop("None identical gene between eset and reference had been found.
+         Check your eset using: intersect(rownames(eset), rownames(reference))")
+  }
+  
+  if(absolute && abs_method != 'no.sumto1' && abs_method != 'sig.score')
+    stop("abs_method must be set to either 'sig.score' or 'no.sumto1'")
   
   #read in data
-  X <- sig_matrix
-  Y <- mixture_file
-  cols <- colnames(Y)
+  X<- sig_matrix
+  # X <- read.table(sig_matrix,header=T,sep="\t",row.names=1,check.names=F)
+  Y <- rownames_to_column(mixture_file,var = "symbol")
+  #to prevent crashing on duplicated gene symbols, add unique numbers to identical names
+  dups <- dim(Y)[1] - length(unique(Y[,1]))
+  if(dups > 0) {
+    warning(paste(dups," duplicated gene symbol(s) found in mixture file!",sep=""))
+    rownames(Y) <- make.names(Y[,1], unique=TRUE)
+  }else {rownames(Y) <- Y[,1]}
+  Y <- Y[,-1]
+  ###################################
   X <- data.matrix(X)
   Y <- data.matrix(Y)
-  print(Y)
+  
   #order
   X <- X[order(rownames(X)),]
   Y <- Y[order(rownames(Y)),]
-  Y <- data.matrix(as.data.frame(Y, col.names = cols))
+  
   P <- perm #number of permutations
   
   #anti-log if max < 50 in mixture file
-  if(max(Y) < 50){
-    Y <- 2^Y
-  } 
+  if(max(Y) < 50) {Y <- 2^Y}
+  
   #quantile normalization of mixture file
+  # library(preprocessCore)
   if(QN == TRUE){
     tmpc <- colnames(Y)
     tmpr <- rownames(Y)
@@ -153,6 +218,11 @@ CIBERSORT <- function(sig_matrix, mixture_file, perm=0, QN=TRUE, absolute=FALSE,
     colnames(Y) <- tmpc
     rownames(Y) <- tmpr
   }
+  
+  #store original mixtures
+  Yorig <- Y
+  Ymedian <- max(median(Yorig),1)
+  
   #intersect genes
   Xgns <- row.names(X)
   Ygns <- row.names(Y)
@@ -177,9 +247,12 @@ CIBERSORT <- function(sig_matrix, mixture_file, perm=0, QN=TRUE, absolute=FALSE,
   
   #iterate through mixtures
   while(itor <= mixtures){
+    
     y <- Y[,itor]
+    
     #standardize mixture
     y <- (y - mean(y)) / sd(y)
+    
     #run SVR core algorithm
     result <- CoreAlg(X, y, absolute, abs_method)
     
@@ -187,6 +260,10 @@ CIBERSORT <- function(sig_matrix, mixture_file, perm=0, QN=TRUE, absolute=FALSE,
     w <- result$w
     mix_r <- result$mix_r
     mix_rmse <- result$mix_rmse
+    
+    if(absolute && abs_method == 'sig.score') {
+      w <- w * median(Y[,itor]) / Ymedian
+    }
     
     #calculate p-value
     if(P > 0) {pval <- 1 - (which.min(abs(nulldist - mix_r)) / length(nulldist))}
@@ -202,38 +279,15 @@ CIBERSORT <- function(sig_matrix, mixture_file, perm=0, QN=TRUE, absolute=FALSE,
   }
   
   #save results
-  #write.table(rbind(header,output), file="/home/zwj/raid1/code/others/TCGA_CIBERSORT.txt", sep="\t", row.names=F, col.names=F, quote=F)
+  # write.table(rbind(header,output), file="CIBERSORT-Results.txt", sep="\t", row.names=F, col.names=F, quote=F)
   
   #return matrix object containing all results
   obj <- rbind(header,output)
   obj <- obj[,-1]
   obj <- obj[-1,]
   obj <- matrix(as.numeric(unlist(obj)),nrow=nrow(obj))
+  rownames(obj) <- colnames(Y)
   if(!absolute){colnames(obj) <- c(colnames(X),"P-value","Correlation","RMSE")}
   else{colnames(obj) <- c(colnames(X),"P-value","Correlation","RMSE",paste('Absolute score (',abs_method,')',sep=""))}
-  row.names(obj) <- colnames(mixture_file)
-  return(obj)
+  obj
 }
-
-sig_matrix <- read.csv("./LM22.txt", sep = "\t")
-rownames(sig_matrix)  <- sig_matrix$gene
-sig_matrix <- sig_matrix[,-1]
-#gtex
-mixture_file2 <- read.csv("./gtexTpmGenes.csv")
-rownames(mixture_file2) <- mixture_file2$gene
-mixture_file2 <- mixture_file2[,-1]
-genes <- intersect(rownames(sig_matrix), rownames(mixture_file2))
-mixture_file2 <- mixture_file2[genes,]
-LM_GTEX <- CIBERSORT(sig_matrix = sig_matrix, mixture_file = mixture_file2, perm=0, QN=FALSE, absolute=TRUE, abs_method='no.sumto1')
-write.csv(LM_GTEX, "./GTEX_LM.csv")
-
-
-
-#tcga
-mixture_file <- read.csv("./tcgaTpmGenes.csv")
-rownames(mixture_file) <- mixture_file$gene
-mixture_file <- mixture_file[,-1]
-genes <- intersect(rownames(sig_matrix), rownames(mixture_file))
-mixture_file <- mixture_file[genes,]
-LM_TCGA <- CIBERSORT(sig_matrix = sig_matrix, mixture_file = mixture_file, perm=0, QN=FALSE, absolute=TRUE, abs_method='no.sumto1')
-write.csv(LM_TCGA, "./TCGA_LM.csv")
