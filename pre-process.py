@@ -16,7 +16,7 @@ indexes = data["geneSymbol"].tolist()
 data = data.iloc[:,1:-1]
 data.index = indexes
 data_tpm = 2 ** data  - 0.001
-protein =  pd.read_csv("./protein.txt", sep = "\t")
+protein =  pd.read_csv("./HUGO.txt", sep = "\t")
 gene = protein["Symbol"].tolist()
 gene_need = [i for i in gene if i in data_tpm.index.tolist()]
 data_tpm = data_tpm.loc[gene_need,:]
@@ -40,7 +40,7 @@ indexes = data["geneSymbol"].tolist()
 data = data.iloc[:,1:-1]
 data.index = indexes
 data_tpm = 2 ** data  - 0.001
-protein =  pd.read_csv("./protein.txt", sep = "\t")
+protein =  pd.read_csv("./HUGO.txt", sep = "\t")
 gene = protein["Symbol"].tolist()
 gene_need = [i for i in gene if i in data_tpm.index.tolist()]
 data_tpm = data_tpm.loc[gene_need,:]
