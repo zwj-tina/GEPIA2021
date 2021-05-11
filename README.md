@@ -24,7 +24,7 @@
     views.py
         Returns the corresponding value for the front end, including propotion, expression and survival.
     database.py
-        Read results data into database.
+        Write results data into database.
 ## reference
     HUGO.txt : protein-coding genes.
     LM22.txt : reference dataset of CIBERSORT.
