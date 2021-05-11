@@ -11,7 +11,7 @@
     quantiseq.R
         quanTIseq is a computational pipeline for the quantification of the Tumor Immune contexture from human RNA-seq data.
         This file is used to calculate the quantification of the Tumor Immune contexture of Tcga and Gtex datasets.
-## result
+## results
     tcga_QS_propotion.csv : calculated by quantiseq 
     tcga_LM_propotion.csv : calculated by CIBERSORT
     tcga_EPIC_propotion.csv : calculated by EPIC
