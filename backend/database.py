@@ -288,3 +288,39 @@ b.write_collection_var(QS_var,overwrite = True)
 QS_obs = dict()
 QS_obs["celltype"] = QS_t.index.tolist()
 b.write_collection_obs(QS_obs,overwrite = True)
+#intergin
+a = API.DatabaseAPI("tcga")
+my_dict_a = a.query_collection_obs()
+my_df_a = pd.DataFrame(my_dict_a)
+sample_type_match = {'Additional - New Primary':'Tumor', 
+                     'Primary Tumor':'Tumor', 'Additional Metastatic':'Tumor', 
+                     'Solid Tissue Normal':'Normal', 'Recurrent Tumor':'Tumor', 
+                     'Metastatic':'Tumor', 'Primary Blood Derived Cancer - Peripheral Blood':'Tumor'}
+sample_type = my_df_a["sample_type"].tolist()
+sample_type_sub = []
+for each in sample_type:
+    sample_type_sub.append(sample_type_match[each])
+select_a = []
+for i in range(len(primary)):
+    select_a.append(primary[i]+" "+sample_type_sub[i])
+my_df_a["select"] = select_a
+del my_df_a["sample_type_id"]
+del my_df_a["sample_type"]
+del my_df_a["_primary_disease"]
+del my_df_a["primary_disease"]
+b = API.DatabaseAPI("gtex")
+my_dict_b = b.query_collection_obs()
+my_df_b = pd.DataFrame(my_dict_b)
+primary_site = my_df_b["_primary_site"].tolist()
+my_df_b["select"] = my_df_b["_primary_site"]
+del my_df_b['body_site_detail (SMTSD)']
+del my_df_b["_primary_site"]
+del my_df_b["_gender"]
+del my_df_b["_patient"]
+del my_df_b["_cohort"]
+my_df_c = pd.concat([my_df_a,my_df_b],axis = 0)
+c = API.DatabaseAPI("bulk")
+obs = dict()
+for each in my_df_c.columns.tolist():
+    obs[each] = my_df_c[each].tolist()
+c.write_collection_obs(obs,overwrite=True)
